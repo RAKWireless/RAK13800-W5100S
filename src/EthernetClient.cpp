@@ -116,6 +116,7 @@ int EthernetClient::peek()
 int EthernetClient::read()
 {
 	uint8_t b;
+	if (sockindex >= MAX_SOCK_NUM) return -1;
 	if (Ethernet.socketRecv(sockindex, &b, 1) > 0) return b;
 	return -1;
 }

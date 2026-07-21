@@ -73,6 +73,7 @@ int EthernetUDP::beginPacket(const char *host, uint16_t port)
 
 int EthernetUDP::beginPacket(IPAddress ip, uint16_t port)
 {
+	if (sockindex >= MAX_SOCK_NUM) return 0;
 	_offset = 0;
 	//Serial.printf("UDP beginPacket\n");
 	return Ethernet.socketStartUDP(sockindex, rawIPAddress(ip), port);
@@ -80,6 +81,7 @@ int EthernetUDP::beginPacket(IPAddress ip, uint16_t port)
 
 int EthernetUDP::endPacket()
 {
+	if (sockindex >= MAX_SOCK_NUM) return 0;
 	return Ethernet.socketSendUDP(sockindex);
 }
 
@@ -90,6 +92,7 @@ size_t EthernetUDP::write(uint8_t byte)
 
 size_t EthernetUDP::write(const uint8_t *buffer, size_t size)
 {
+	if (sockindex >= MAX_SOCK_NUM) return 0;
 	//Serial.printf("UDP write %d\n", size);
 	uint16_t bytes_written = Ethernet.socketBufferData(sockindex, _offset, buffer, size);
 	_offset += bytes_written;
@@ -98,6 +101,8 @@ size_t EthernetUDP::write(const uint8_t *buffer, size_t size)
 
 int EthernetUDP::parsePacket()
 {
+	if (sockindex >= MAX_SOCK_NUM) return 0;
+
 	// discard any remaining bytes in the last packet
 	while (_remaining) {
 		// could this fail (loop endlessly) if _remaining > 0 and recv in read fails?
@@ -132,6 +137,7 @@ int EthernetUDP::read()
 {
 	uint8_t byte;
 
+	if (sockindex >= MAX_SOCK_NUM) return -1;
 	if ((_remaining > 0) && (Ethernet.socketRecv(sockindex, &byte, 1) > 0)) {
 		// We read things without any problems
 		_remaining--;
@@ -144,6 +150,7 @@ int EthernetUDP::read()
 
 int EthernetUDP::read(unsigned char *buffer, size_t len)
 {
+	if (sockindex >= MAX_SOCK_NUM) return -1;
 	if (_remaining > 0) {
 		int got;
 		if (_remaining <= len) {
