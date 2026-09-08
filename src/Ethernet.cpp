@@ -25,6 +25,13 @@
 
 IPAddress EthernetClass::_dnsServerAddress;
 DhcpClass* EthernetClass::_dhcp = NULL;
+const char* EthernetClass::_hostName = NULL;
+
+int EthernetClass::begin(uint8_t *mac, const char *hostname, unsigned long timeout, unsigned long responseTimeout)
+{
+	setHostname(hostname);
+	return begin(mac, timeout, responseTimeout);
+}
 
 int EthernetClass::begin(uint8_t *mac, unsigned long timeout, unsigned long responseTimeout)
 {
@@ -39,7 +46,7 @@ int EthernetClass::begin(uint8_t *mac, unsigned long timeout, unsigned long resp
 	W5100.getSPI()->endTransaction();
 
 	// Now try to get our config info from a DHCP server
-	int ret = _dhcp->beginWithDHCP(mac, timeout, responseTimeout);
+	int ret = _dhcp->beginWithDHCP(mac, timeout, responseTimeout, _hostName);
 	if (ret == 1) {
 		// We've successfully found a DHCP server and got our configuration
 		// info, so set things accordingly

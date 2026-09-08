@@ -6,13 +6,22 @@
 #include "Dhcp.h"
 #include "w5100.h"
 
-int DhcpClass::beginWithDHCP(uint8_t *mac, unsigned long timeout, unsigned long responseTimeout)
+int DhcpClass::beginWithDHCP(uint8_t *mac, unsigned long timeout, unsigned long responseTimeout, const char *hostname)
 {
 	_dhcpLeaseTime=0;
 	_dhcpT1=0;
 	_dhcpT2=0;
 	_timeout = timeout;
 	_responseTimeout = responseTimeout;
+
+	// Store the (optional) caller-supplied host name. When none is given we
+	// leave _hostName empty and fall back to the default name (see send_DHCP_MESSAGE).
+	if (hostname != NULL && hostname[0] != '\0') {
+		strncpy(_hostName, hostname, HOST_NAME_MAX_LENGTH);
+		_hostName[HOST_NAME_MAX_LENGTH] = '\0';
+	} else {
+		_hostName[0] = '\0';
+	}
 
 	// zero out _dhcpMacAddr
 	memset(_dhcpMacAddr, 0, 6);
@@ -118,8 +127,10 @@ void DhcpClass::presend_DHCP()
 
 void DhcpClass::send_DHCP_MESSAGE(uint8_t messageType, uint16_t secondsElapsed)
 {
-	uint8_t buffer[32];
-	memset(buffer, 0, 32);
+	// Large enough to hold the host name option (option + length + name)
+	// as well as every other fixed-size chunk written below.
+	uint8_t buffer[18 + HOST_NAME_MAX_LENGTH];
+	memset(buffer, 0, sizeof(buffer));
 	IPAddress dest_addr(255, 255, 255, 255); // Broadcast address
 
 	if (_dhcpUdpSocket.beginPacket(dest_addr, DHCP_SERVER_PORT) == -1) {
@@ -188,15 +199,26 @@ void DhcpClass::send_DHCP_MESSAGE(uint8_t messageType, uint16_t secondsElapsed)
 
 	// OPT - host name
 	buffer[16] = hostName;
-	buffer[17] = strlen(HOST_NAME) + 6; // length of hostname + last 3 bytes of mac address
-	strcpy((char*)&(buffer[18]), HOST_NAME);
+	if (_hostName[0] != '\0') {
+		// Caller supplied a custom host name, send it verbatim
+		uint8_t nameLen = strlen(_hostName);
+		buffer[17] = nameLen;
+		memcpy(&buffer[18], _hostName, nameLen);
+		//put data in W5100 transmit buffer
+		_dhcpUdpSocket.write(buffer, 18 + nameLen);
+	} else {
+		// Default host name: HOST_NAME + last 3 bytes of the mac address in hex
+		uint8_t nameLen = strlen(HOST_NAME);
+		buffer[17] = nameLen + 6; // length of hostname + last 3 bytes of mac address
+		strcpy((char*)&(buffer[18]), HOST_NAME);
 
-	printByte((char*)&(buffer[24]), _dhcpMacAddr[3]);
-	printByte((char*)&(buffer[26]), _dhcpMacAddr[4]);
-	printByte((char*)&(buffer[28]), _dhcpMacAddr[5]);
+		printByte((char*)&(buffer[18 + nameLen]), _dhcpMacAddr[3]);
+		printByte((char*)&(buffer[20 + nameLen]), _dhcpMacAddr[4]);
+		printByte((char*)&(buffer[22 + nameLen]), _dhcpMacAddr[5]);
 
-	//put data in W5100 transmit buffer
-	_dhcpUdpSocket.write(buffer, 30);
+		//put data in W5100 transmit buffer
+		_dhcpUdpSocket.write(buffer, 18 + nameLen + 6);
+	}
 
 	if (messageType == DHCP_REQUEST) {
 		buffer[0] = dhcpRequestedIPaddr;

@@ -86,11 +86,14 @@ class EthernetClass {
 private:
 	static IPAddress _dnsServerAddress;
 	static DhcpClass* _dhcp;
+	static const char* _hostName;
 public:
 	// Initialise the Ethernet shield to use the provided MAC address and
 	// gain the rest of the configuration through DHCP.
 	// Returns 0 if the DHCP configuration failed, and 1 if it succeeded
 	static int begin(uint8_t *mac, unsigned long timeout = 60000, unsigned long responseTimeout = 4000);
+	// Same as above, but also advertise the given host name to the DHCP server.
+	static int begin(uint8_t *mac, const char *hostname, unsigned long timeout = 60000, unsigned long responseTimeout = 4000);
 	static int maintain();
 	static EthernetLinkStatus linkStatus();
 	static EthernetHardwareStatus hardwareStatus();
@@ -108,7 +111,11 @@ public:
 	static IPAddress subnetMask();
 	static IPAddress gatewayIP();
 	static IPAddress dnsServerIP() { return _dnsServerAddress; }
+	static const char* hostname() { return _hostName; }
 
+	// Optionally set the host name advertised to the DHCP server. Must be
+	// called before begin(); pass NULL to restore the default host name.
+	static void setHostname(const char *hostname) { _hostName = hostname; }
 	void setMACAddress(const uint8_t *mac_address);
 	void setLocalIP(const IPAddress local_ip);
 	void setSubnetMask(const IPAddress subnet);
@@ -304,6 +311,10 @@ private:
 
 
 
+// Maximum length (excluding the terminating NUL) of the host name that can be
+// advertised to the DHCP server. Longer names passed by the caller are truncated.
+#define HOST_NAME_MAX_LENGTH 32
+
 class DhcpClass {
 private:
 	uint32_t _dhcpInitialTransactionId;
@@ -330,6 +341,7 @@ private:
 	unsigned long _responseTimeout;
 	unsigned long _lastCheckLeaseMillis;
 	uint8_t _dhcp_state;
+	char _hostName[HOST_NAME_MAX_LENGTH + 1];
 	EthernetUDP _dhcpUdpSocket;
 
 	int request_DHCP_lease();
@@ -346,7 +358,7 @@ public:
 	IPAddress getDhcpServerIp();
 	IPAddress getDnsServerIp();
 
-	int beginWithDHCP(uint8_t *, unsigned long timeout = 60000, unsigned long responseTimeout = 4000);
+	int beginWithDHCP(uint8_t *, unsigned long timeout = 60000, unsigned long responseTimeout = 4000, const char *hostname = NULL);
 	int checkLease();
 };
 

@@ -40,7 +40,10 @@ void setup()
   Ethernet.init( SS );
 
   Serial.println("Initialize Ethernet with DHCP.");   // start the Ethernet connection.
-  if (Ethernet.begin(mac) == 0) 
+  // Optionally advertise a custom host name to the DHCP server. Either set it
+  // before begin() with Ethernet.setHostname("my-device"), or pass it directly:
+  // if (Ethernet.begin(mac, "my-device") == 0)
+  if (Ethernet.begin(mac) == 0)
   {
     Serial.println("Failed to configure Ethernet using DHCP");
     if (Ethernet.hardwareStatus() == EthernetNoHardware)  // Check for Ethernet hardware present.
